@@ -67,7 +67,6 @@ django-templated-mail==1.1.1
 django-widget-tweaks==1.4.8
 djangorestframework==3.12.4
 djangorestframework-simplejwt==5.0.0
-djitellopy==2.5.0
 djoser==2.1.0
 dnspython==2.3.0
 docker==6.0.0
@@ -152,7 +151,7 @@ nltk==3.8.1
 notebook==6.5.4
 notebook_shim==0.2.2
 numba==0.60.0
-numpy==1.23.5
+numpy==2.0.2
 oauthlib==3.2.2
 openai==0.27.6
 opencv-python==4.10.0.84
@@ -265,3 +264,6 @@ wrapt==1.14.1
 XlsxWriter==3.0.3
 yarl==1.9.2
 zipp==3.15.0
+djitellopy==2.5.0
+PyAudio==0.2.14
+numpy==2.0.2

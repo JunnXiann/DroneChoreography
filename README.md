@@ -10,17 +10,28 @@ A real-time system that makes DJI Tello drones dance to music beats. The system 
 
 ## Requirements
 - Python 3.11 or later
-- PyAudio
-- NumPy
-- DJITelloPy (for real drone control)
+- DJI Tello drone (for real drone mode)
+- Computer with microphone input
+- Windows operating system
 
 ## Installation
-1. Install required packages:
+
+1. Clone this repository or download the source files
+
+2. Navigate to the project directory:
 ```bash
-pip install pyaudio numpy djitellopy
+cd DroneChoreography
 ```
 
-2. Clone this repository or download the source files
+3. Install required packages using requirements.txt:
+```bash
+pip install -r requirements.txt
+```
+
+This will install all necessary dependencies:
+- PyAudio (for audio processing)
+- NumPy (for numerical operations)
+- DJITelloPy (for drone control)
 
 ## Usage
 
@@ -94,6 +105,19 @@ In `music_beat_sync.py`, you can adjust these parameters:
 - Minimum intervals between moves to prevent overwhelming the drone
 - Safe landing procedure when stopping
 - Battery level check when connecting to real drone
+
+## Troubleshooting
+
+### Audio Issues
+- Make sure your microphone is working and set as the default input device
+- Try adjusting the `energy_threshold` if beats aren't being detected properly
+- Ensure music is playing loud enough for your microphone to detect
+
+### Drone Connection Issues
+- Verify your computer is connected to the Tello drone's WiFi network
+- Check the drone's battery level
+- Ensure you're in an area with minimal WiFi interference
+- Keep the drone within 5-10 meters of your computer
 
 ## Contributing
 Feel free to fork this repository and submit pull requests with your improvements!
