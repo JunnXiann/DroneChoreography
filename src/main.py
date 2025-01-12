@@ -1,34 +1,45 @@
-from src.drone_control import DroneController
-from src.music_beat_sync import BeatSynchronizer
+from drone_control import DroneController
+from music_beat_sync import RealTimeBeatDetector
+import time
 
 def main():
-    # Path to your music file
-    music_file = "music/sample_track.mp3"
-
-    # Initialize the BeatSynchronizer to detect beats
-    beat_sync = BeatSynchronizer(music_file)
-    beat_times = beat_sync.get_beats()
-
-    # Initialize the DroneController
-    drone = DroneController()
-    drone.connect()
-
+    # Initialize components
+    print("\n=== Drone Choreography System ===\n")
+    
+    # Create drone controller in simulation mode
+    drone = DroneController(simulation_mode=True)
+    
+    # Create beat detector
+    detector = RealTimeBeatDetector()
+    
     try:
-        # Start the performance
-        drone.takeoff()
-        print("Drone is airborne!")
-
-        # Synchronize movements with beats
-        for beat_time in beat_times:
-            print(f"Performing move at beat: {beat_time:.2f} seconds")
-            drone.perform_dance_move()
+        # Connect to drone
+        drone.connect()
         
-        print("Performance complete!")
-
+        # Set up beat callback
+        detector.add_beat_callback(drone.perform_dance_move)
+        
+        # Take off
+        drone.takeoff()
+        time.sleep(1)  # Wait for stable flight
+        
+        print("\nSystem ready!")
+        print("1. Play music near your microphone")
+        print("2. Press Ctrl+C to stop")
+        print("\nStarting beat detection...")
+        
+        # Start beat detection
+        detector.start()
+        
+    except KeyboardInterrupt:
+        print("\n\nStopping performance...")
+    except Exception as e:
+        print(f"\nError: {str(e)}")
     finally:
-        # Land the drone safely
+        # Clean shutdown
+        detector.stop()
         drone.land()
-        print("Drone landed successfully!")
+        print("\nPerformance ended!")
 
 if __name__ == "__main__":
     main()
