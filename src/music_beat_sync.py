@@ -28,18 +28,34 @@ class RealTimeBeatDetector:
         self.last_visualization_time = 0
         self.visualization_interval = 0.1
         
-        # Frequency bands for music detection
+        # Frequency bands for drum detection
         self.freq_bands = {
-            'sub_bass': (20, 60),
-            'bass': (60, 250),
-            'low_mid': (250, 500),
-            'mid': (500, 2000),
+            'kick': (50, 100),      # Bass drum
+            'snare': (200, 400),    # Snare drum
+            'hihat': (10000, 15000),# Hi-hats
+            'toms': (100, 300),     # Tom drums
         }
         
         # Band energy history
         self.band_energies = {band: [] for band in self.freq_bands}
         self.history_size = 20
-        self.min_active_bands = 2
+        self.min_active_bands = 1  # Reduced to detect individual drum hits
+        
+        # Drum-specific thresholds and minimum energies
+        self.drum_thresholds = {
+            'kick': 0.1,    
+            'snare': 0.1,   
+            'hihat': 0.1,   
+            'toms': 0.1    
+        }
+        
+        # Minimum energy required to trigger movement
+        self.min_trigger_energy = {
+            'kick': 0.1,     
+            'snare': 0.1,    
+            'hihat': 0.1,    
+            'toms': 0.1      
+        }
         
         # Control flags
         self.is_running = False
@@ -65,88 +81,69 @@ class RealTimeBeatDetector:
         filtered_data = self.bandpass_filter(data, low, high)
         return np.sqrt(np.mean(np.square(filtered_data)))
         
-    def is_music_beat(self, audio_data):
-        """Detect if there's a musical beat in the audio"""
-        is_beat = False
-        total_energy = 0
-        band_info = []
-        active_bands = 0
-        
-        # Calculate energy in each frequency band
-        for band in self.freq_bands:
-            energy = self.get_band_energy(audio_data, band)
-            self.band_energies[band].append(energy)
+    def detect_beats(self, audio_data):
+        """Detect beats in the audio data"""
+        try:
+            # Apply bandpass filters and calculate energy for each band
+            band_energies = {}
+            active_bands = []
+            significant_activity = False  # Flag for significant energy detection
             
-            # Keep history size limited
-            if len(self.band_energies[band]) > self.history_size:
-                self.band_energies[band].pop(0)
-            
-            # Calculate average energy for this band
-            if len(self.band_energies[band]) >= 2:
-                avg_energy = np.mean(self.band_energies[band][:-1])
-                current_energy = self.band_energies[band][-1]
+            for band, (low, high) in self.freq_bands.items():
+                filtered = self.bandpass_filter(audio_data, low, high)
+                energy = np.sum(filtered * filtered) / len(filtered)
+                band_energies[band] = energy
                 
-                # Check if current energy is significantly higher than average
-                is_band_beat = current_energy > avg_energy * 1.3
-                if is_band_beat:
-                    active_bands += 1
-                    total_energy += current_energy
-                    self.logger.info(f"Band {band} beat detected: Energy {current_energy:.6f}, Avg {avg_energy:.6f}")
+                # Store energy history
+                self.band_energies[band].append(energy)
+                if len(self.band_energies[band]) > self.history_size:
+                    self.band_energies[band].pop(0)
                 
-                # Store band info for visualization
-                band_info.append({
-                    'name': band,
-                    'energy': current_energy,
-                    'avg': avg_energy,
-                    'is_beat': is_band_beat
-                })
-        
-        # Only consider it a beat if multiple bands are active
-        is_beat = active_bands >= self.min_active_bands
-        
-        # Log overall beat detection
-        if is_beat:
-            self.logger.info(f"Overall beat detected with {active_bands} active bands")
-        else:
-            self.logger.debug(f"No beat detected. Active bands: {active_bands}")
-        
-        # Update visualization at fixed intervals
-        current_time = time.time()
-        if current_time - self.last_visualization_time >= self.visualization_interval:
-            self._visualize_beat_detection(band_info, is_beat, active_bands)
-            self.last_visualization_time = current_time
-        
-        return is_beat, total_energy
-        
-    def _visualize_beat_detection(self, band_info, is_beat, active_bands):
-        """Create a visual representation of the beat detection"""
-        # Clear previous line and move cursor up
-        print('\033[F' * 8 + '\033[K', end='')
-        
-        # Print header with stats
-        print("\n=== Beat Monitor ===")
-        print(f"Total Beats: {self.beat_count} | Active Bands: {active_bands}/{len(self.freq_bands)}")
-        
-        # Print each frequency band
-        for band in band_info:
-            # Create a visual meter
-            energy_ratio = min(band['energy'] / (band['avg'] * 1.3), 1.0)
-            meter_length = int(energy_ratio * 20)
-            meter = '█' * meter_length + '░' * (20 - meter_length)
+                # Calculate average energy for this band
+                avg_energy = np.mean(self.band_energies[band])
+                
+                # Check if energy is above minimum threshold for movement
+                if energy > self.min_trigger_energy[band]:
+                    significant_activity = True
+                
+                # Use drum-specific thresholds
+                threshold = self.drum_thresholds[band]
+                
+                # Check if this band has a beat and enough energy
+                if energy > avg_energy + threshold and energy > self.min_trigger_energy[band]:
+                    active_bands.append(band)
+                    self.logger.info(f"{band.upper()} hit detected! Energy: {energy:.6f}")
             
-            # Add beat indicator
-            beat_indicator = '🔊' if band['is_beat'] else '  '
+            # Only visualize if there's significant activity
+            current_time = time.time()
+            if current_time - self.last_visualization_time >= self.visualization_interval:
+                if significant_activity:
+                    self._visualize_drum_energies(band_energies)
+                self.last_visualization_time = current_time
             
-            # Print the band info
-            print(f"{band['name']:8} {beat_indicator} [{meter}]")
-        
-        # Print overall beat status
-        status = '🎵 BEAT!' if is_beat else '       '
-        print(f"\nStatus: {status}")
-        
-        # Add sound alert for beat detection
-        if is_beat:
-            print("\a", end='')  # ASCII Bell character for sound alert
+            # Trigger callback if any drum is detected with sufficient energy
+            if active_bands and time.time() - self.last_beat_time >= self.min_beat_interval:
+                self.last_beat_time = time.time()
+                self.beat_count += 1
+                
+                # Call all registered callbacks with the detected drum type
+                for callback in self.beat_callbacks:
+                    callback(active_bands[0])  
+                
+        except Exception as e:
+            self.logger.error(f"Error in beat detection: {e}")
+            
+    def _visualize_drum_energies(self, energies):
+        """Visualize the energy levels of different drum components"""
+        print("\n=== Drum Monitor ===")
+        for band, energy in energies.items():
+            if energy > self.min_trigger_energy[band] * 0.5:  # Show only if energy is significant
+                bars = int(min(energy * 50000, 30))  # Scale factor adjusted for visualization
+                threshold_bars = int(self.min_trigger_energy[band] * 50000)
+                print(f"{band.upper():6} {'█' * bars}{' ' * (30 - bars)} | Energy: {energy:.6f}")
+                print(f"       {' ' * threshold_bars}↑ Min Threshold")
+        active_count = sum(1 for band, energy in energies.items() if energy > self.min_trigger_energy[band])
+        print(f"Total Beats: {self.beat_count} | Active Drums: {active_count}/4")
         
     def process_audio(self):
         """Process audio data from queue"""
@@ -161,22 +158,7 @@ class RealTimeBeatDetector:
                     continue
                 
                 # Detect musical beats
-                is_beat, energy = self.is_music_beat(audio_data)
-                
-                # Check if this is a beat
-                current_time = time.time()
-                if (is_beat and energy > self.energy_threshold and 
-                    current_time - self.last_beat_time > self.min_beat_interval):
-                    self.last_beat_time = current_time
-                    self.beat_count += 1
-                    self.logger.info(f"Music beat detected! Energy: {energy:.6f}")
-                    
-                    # Execute callbacks
-                    for callback in self.beat_callbacks:
-                        try:
-                            callback()
-                        except Exception as e:
-                            self.logger.error(f"Error in beat callback: {e}")
+                self.detect_beats(audio_data)
                 
             except Exception as e:
                 if not self.is_running:
