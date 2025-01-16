@@ -7,7 +7,7 @@ def main():
     print("\n=== Drone Choreography System ===\n")
     
     # Create drone controller in simulation mode
-    drone = DroneController(simulation_mode=True)
+    drone = DroneController(simulation_mode=False)
     
     # Create beat detector
     detector = RealTimeBeatDetector()
