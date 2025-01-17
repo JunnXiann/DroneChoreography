@@ -109,16 +109,12 @@ class DroneController:
             moves = [
                 ("rotate_clockwise", lambda: self.drone.rotate_clockwise(90)),
                 ("rotate_counter_clockwise", lambda: self.drone.rotate_counter_clockwise(90)),
-                ("flip_forward", lambda: self.drone.flip_forward()),
+                ("flip_forward", lambda: self.drone.flip("")),
                 ("flip_back", lambda: self.drone.flip_back()),
                 ("flip_left", lambda: self.drone.flip_left()),
                 ("flip_right", lambda: self.drone.flip_right()),
-                ("move_up", self._safe_move_up),
-                ("move_down", self._safe_move_down),
-                ("move_forward", self._safe_move_forward),
-                ("move_back", self._safe_move_back),
-                ("move_left", self._safe_move_left),
-                ("move_right", self._safe_move_right)
+                ("move_up", lambda: self.drone.move_up(20)),
+                ("move_down", lambda: self.drone.move_down(20))
             ]
             
             # Choose a random move
@@ -129,10 +125,7 @@ class DroneController:
             max_attempts = 3
             for attempt in range(max_attempts):
                 try:
-                    result = move_func()
-                    if result is False:  # Safety check failed
-                        print(f"Safety check failed for {move_name}, skipping...")
-                        break
+                    move_func()
                     print(f"Successfully executed: {move_name}")
                     break
                 except Exception as e:
@@ -145,54 +138,6 @@ class DroneController:
         except Exception as e:
             print(f"Dance move failed: {e}")
             
-    def _safe_move_up(self):
-        """Safely move up with obstacle detection"""
-        tof_reading = self.drone.get_distance_tof()
-        if tof_reading < 100:  # Less than 1 meter from obstacle
-            print("Cannot move up - obstacle detected above")
-            return False
-        self.drone.move_up(20)
-        return True
-
-    def _safe_move_down(self):
-        """Safely move down with height check"""
-        current_height = self.drone.get_height()
-        if current_height < 50:  # Too close to ground
-            print("Cannot move down - too close to ground")
-            return False
-        self.drone.move_down(20)
-        return True
-
-    def _safe_move_forward(self):
-        """Safely move forward with obstacle detection"""
-        front_reading = self.drone.get_barometer()  # Using barometer as proxy for forward distance
-        if front_reading < 100:  # Too close to obstacle
-            print("Cannot move forward - obstacle detected")
-            return False
-        self.drone.move_forward(20)
-        return True
-
-    def _safe_move_back(self):
-        """Safely move backward with obstacle detection"""
-        back_reading = self.drone.get_barometer()  # Using barometer as proxy for backward distance
-        if back_reading < 100:  # Too close to obstacle
-            print("Cannot move backward - obstacle detected")
-            return False
-        self.drone.move_back(20)
-        return True
-
-    def _safe_move_left(self):
-        """Safely move left with obstacle detection"""
-        # Since Tello doesn't have side sensors, we'll use conservative movement
-        self.drone.move_left(20)
-        return True
-
-    def _safe_move_right(self):
-        """Safely move right with obstacle detection"""
-        # Since Tello doesn't have side sensors, we'll use conservative movement
-        self.drone.move_right(20)
-        return True
-
     # Simulation mode movement functions
     def _move_up(self, distance):
         if self.simulation_mode:
